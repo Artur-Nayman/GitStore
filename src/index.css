@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-gitstore-border;
+  }
+  body {
+    @apply bg-gitstore-bg text-gitstore-text;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-gitstore-bg;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gitstore-border rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gitstore-muted;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-gitstore-accent text-white font-medium rounded-lg
+           hover:bg-gitstore-accentHover transition-colors duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply px-4 py-2 bg-gitstore-surface text-gitstore-text font-medium rounded-lg
+           border border-gitstore-border hover:border-gitstore-accent
+           transition-colors duration-200;
+  }
+  .input-primary {
+    @apply w-full px-4 py-3 bg-gitstore-surface border border-gitstore-border
+           rounded-lg text-gitstore-text placeholder-gitstore-muted
+           focus:outline-none focus:border-gitstore-accent focus:ring-1 focus:ring-gitstore-accent
+           transition-colors duration-200;
+  }
+  .card {
+    @apply bg-gitstore-surface border border-gitstore-border rounded-xl p-6
+           hover:border-gitstore-accent/50 transition-colors duration-200;
+  }
+}
