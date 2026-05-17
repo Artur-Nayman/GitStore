@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useAuthStore } from '../store/auth';
 import { useOAuth } from '../hooks/useOAuth';
 
 export default function AuthButton() {
   const { isAuthenticated } = useAuthStore();
-  const { startAuth, logout, isAuthenticating } = useOAuth();
+  const { tokenInput, setTokenInput, submitToken, logout, error } = useOAuth();
+  const [showInput, setShowInput] = useState(false);
 
   if (isAuthenticated) {
     return (
@@ -13,10 +15,51 @@ export default function AuthButton() {
     );
   }
 
+  if (showInput) {
+    return (
+      <div className="card w-full max-w-md">
+        <h3 className="text-lg font-semibold mb-2">Add GitHub Token</h3>
+        <p className="text-sm text-gitstore-muted mb-4">
+          Generate a token at{' '}
+          <a
+            href="https://github.com/settings/tokens/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gitstore-accent hover:underline"
+          >
+            github.com/settings/tokens
+          </a>{' '}
+          (no scopes needed)
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="password"
+            value={tokenInput}
+            onChange={(e) => setTokenInput(e.target.value)}
+            placeholder="ghp_xxxxxxxxxxxx"
+            className="input-primary flex-1 font-mono text-sm"
+            onKeyDown={(e) => e.key === 'Enter' && submitToken()}
+          />
+          <button onClick={submitToken} className="btn-primary">
+            Save
+          </button>
+        </div>
+        {error && (
+          <p className="mt-2 text-sm text-gitstore-danger">{error}</p>
+        )}
+        <button
+          onClick={() => { setShowInput(false); setTokenInput(''); }}
+          className="mt-3 text-sm text-gitstore-muted hover:text-gitstore-text"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
   return (
     <button
-      onClick={startAuth}
-      disabled={isAuthenticating}
+      onClick={() => setShowInput(true)}
       className="btn-primary flex items-center gap-2"
     >
       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">

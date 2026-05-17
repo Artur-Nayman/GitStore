@@ -38,13 +38,5 @@
         "type": "downloadBootstrapper"
       }
     }
-  },
-  "plugins": {
-    "deep-link": {
-      "mobile": [],
-      "desktop": {
-        "schemes": ["gitstore"]
-      }
-    }
   }
 }

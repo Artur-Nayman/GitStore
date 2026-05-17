@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useSearchStore } from '../hooks/useSearch';
-import { useDeepLink } from '../hooks/useDeepLink';
 import { initAuth } from '../store/auth';
 import SearchBar from '../components/SearchBar';
 import AppCard from '../components/AppCard';
@@ -8,7 +7,6 @@ import AuthButton from '../components/AuthButton';
 
 export default function Landing() {
   const { results, isLoading, error, hasSearched, search } = useSearchStore();
-  useDeepLink();
 
   useEffect(() => {
     initAuth();

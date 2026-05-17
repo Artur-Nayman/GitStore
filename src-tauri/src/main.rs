@@ -8,7 +8,6 @@ mod utils;
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .setup(|app| {
             db::init_db(app.app_handle())?;

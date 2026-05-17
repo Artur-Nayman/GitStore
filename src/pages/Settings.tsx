@@ -4,9 +4,8 @@ import AuthButton from '../components/AuthButton';
 
 export default function Settings() {
   const { isAuthenticated, token } = useAuthStore();
-  const { clearCache } = useCacheStore();
+  const { searchCache, releaseCache, clearCache } = useCacheStore();
 
-  const { searchCache, releaseCache } = useCacheStore();
   const cacheSize = Object.keys(searchCache).length + Object.keys(releaseCache).length;
 
   return (
@@ -16,19 +15,30 @@ export default function Settings() {
       <div className="space-y-6">
         <section className="card">
           <h2 className="text-xl font-semibold mb-4">Authentication</h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gitstore-muted">
-                {isAuthenticated ? 'Authenticated with GitHub' : 'Not authenticated'}
-              </p>
-              {isAuthenticated && (
+          {isAuthenticated ? (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gitstore-success font-medium">Authenticated</p>
                 <p className="text-sm text-gitstore-muted mt-1 font-mono">
-                  Token: {token?.slice(0, 10)}...{token?.slice(-4)}
+                  Token: {token?.slice(0, 8)}...{token?.slice(-4)}
                 </p>
-              )}
+                <p className="text-xs text-gitstore-muted mt-1">
+                  5,000 requests/hour
+                </p>
+              </div>
+              <AuthButton />
             </div>
-            <AuthButton />
-          </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <p className="text-gitstore-muted">Not authenticated</p>
+                <p className="text-sm text-gitstore-muted mt-1">
+                  60 requests/hour (unauthenticated limit)
+                </p>
+              </div>
+              <AuthButton />
+            </div>
+          )}
         </section>
 
         <section className="card">
@@ -49,11 +59,14 @@ export default function Settings() {
         </section>
 
         <section className="card">
-          <h2 className="text-xl font-semibold mb-4">Environment</h2>
-          <div className="space-y-2 text-sm text-gitstore-muted">
-            <p>Client ID: {import.meta.env.VITE_GITHUB_CLIENT_ID ? 'Configured' : 'Not set'}</p>
-            <p>OAuth URL: {import.meta.env.VITE_OAUTH_REDIRECT_URL ? 'Configured' : 'Not set'}</p>
-          </div>
+          <h2 className="text-xl font-semibold mb-4">How to get a token</h2>
+          <ol className="space-y-2 text-sm text-gitstore-muted list-decimal list-inside">
+            <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener noreferrer" className="text-gitstore-accent hover:underline">github.com/settings/tokens/new</a></li>
+            <li>Give it a name (e.g., "GitStore")</li>
+            <li>No scopes needed — leave all unchecked</li>
+            <li>Click "Generate token"</li>
+            <li>Copy the token and paste it above</li>
+          </ol>
         </section>
       </div>
     </div>
