@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/nicklasxyz/cargo-manifest-schema/main/schema.json",
   "productName": "GitStore",
   "version": "0.1.0",
-  "identifier": "com.gitstore.app",
+  "identifier": "com.gitstore.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

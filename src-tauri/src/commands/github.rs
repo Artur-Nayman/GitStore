@@ -130,7 +130,8 @@ async fn fetch_release_assets(
         Err(_) => return Vec::new(),
     };
 
-    let assets = json["assets"].as_array().unwrap_or(&Vec::new());
+    let empty_vec = Vec::new();
+    let assets = json["assets"].as_array().unwrap_or(&empty_vec);
     let extensions = get_platform_extensions(platform);
 
     assets
