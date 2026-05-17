@@ -1,8 +1,11 @@
 import { create } from 'zustand';
 import { useAuthStore } from '../store/auth';
 import { useCacheStore } from '../store/cache';
-import { buildTopicQuery } from '../lib/categories';
 import { filterAssetsByPlatform, type Platform } from '../lib/platforms';
+
+export type SortOption = 'stars' | 'updated';
+
+const PAGE_SIZE = 50;
 
 export interface ReleaseAsset {
   name: string;
@@ -19,15 +22,22 @@ export interface AppResult {
   topics: string[];
   avatar_url: string;
   assets: ReleaseAsset[];
+  pushed_at: string;
 }
 
 interface SearchState {
   results: AppResult[];
   isLoading: boolean;
+  isLoadingMore: boolean;
   error: string | null;
   hasSearched: boolean;
   currentPlatform: Platform;
-  search: (query: string, category: string, platform: Platform) => Promise<void>;
+  currentSort: SortOption;
+  totalAvailable: number;
+  currentPage: number;
+  lastSearchParams: { query: string; category: string; platform: Platform; sort: SortOption } | null;
+  search: (query: string, category: string, platform: Platform, sort: SortOption) => Promise<void>;
+  loadMore: () => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -56,48 +66,157 @@ const fetchLatestRelease = async (owner: string, repo: string, platform: Platfor
   const cached = useCacheStore.getState().getReleaseCache(repoKey);
   if (cached) return cached.data as ReleaseAsset[];
 
-  const response = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/releases/latest`, {
-    headers: buildHeaders(),
-  });
-  parseRateLimit(response);
+  try {
+    const response = await fetch(`${GITHUB_API}/repos/${owner}/${repo}/releases/latest`, {
+      headers: buildHeaders(),
+    });
+    parseRateLimit(response);
 
-  if (!response.ok) return [];
+    if (!response.ok) return [];
 
-  const data = await response.json();
-  const assets = filterAssetsByPlatform(
-    data.assets || [],
-    platform
+    const data = await response.json();
+    const assets = filterAssetsByPlatform(
+      data.assets || [],
+      platform
+    );
+
+    useCacheStore.getState().setReleaseCache(repoKey, assets);
+    return assets;
+  } catch {
+    return [];
+  }
+};
+
+const buildSearchQuery = (keyword: string, category: string): string => {
+  const parts: string[] = [];
+
+  if (keyword.trim()) {
+    parts.push(keyword.trim());
+  }
+
+  const categoryKeywords: Record<string, string[]> = {
+    'dev-tools': ['developer tools', 'code editor', 'IDE', 'devtools'],
+    'media': ['media player', 'audio player', 'video player', 'music player', 'podcast'],
+    'communication': ['chat app', 'messaging', 'email client', 'voip', 'IRC client'],
+    'utilities': ['file manager', 'system utility', 'clipboard manager', 'app launcher'],
+    'games': ['game engine', 'game launcher', 'emulator', 'game client'],
+    'security': ['password manager', 'encryption tool', 'firewall', 'privacy tool'],
+    'networking': ['vpn client', 'proxy tool', 'web browser', 'DNS', 'torrent client'],
+    'productivity': ['note taking', 'task manager', 'calendar app', 'kanban board'],
+    'graphics': ['image editor', 'photo editor', 'drawing app', '3D modeling', 'CAD'],
+    'science': ['science tool', 'education app', 'math software', 'physics simulation'],
+    'finance': ['finance app', 'accounting software', 'budget tracker', 'crypto wallet'],
+    'ai-ml': ['machine learning', 'AI tool', 'chatbot', 'neural network', 'LLM'],
+    'cloud': ['cloud tool', 'docker tool', 'kubernetes', 'CI/CD', 'monitoring tool', 'backup tool'],
+    'terminal': ['terminal emulator', 'shell', 'command line', 'CLI tool', 'REPL'],
+    'data': ['database tool', 'data visualization', 'analytics tool', 'ETL'],
+  };
+
+  if (category && category !== 'all') {
+    const keywords = categoryKeywords[category] || [];
+    if (keywords.length > 0) {
+      const kwQuery = keywords.map(k => `"${k}"`).join(' OR ');
+      if (parts.length > 0) {
+        parts.push(kwQuery);
+      } else {
+        parts.push(`stars:>0 ${kwQuery}`);
+      }
+    }
+  }
+
+  if (parts.length === 0) {
+    return 'stars:>100';
+  }
+
+  return parts.join(' ');
+};
+
+const processRepos = async (repos: any[], platform: Platform): Promise<AppResult[]> => {
+  const resultsWithAssets = await Promise.all(
+    repos.map(async (repo: any) => {
+      const assets = await fetchLatestRelease(repo.owner.login, repo.name, platform);
+      return {
+        id: repo.id,
+        full_name: repo.full_name,
+        description: repo.description,
+        html_url: repo.html_url,
+        stargazers_count: repo.stargazers_count,
+        language: repo.language,
+        topics: repo.topics || [],
+        avatar_url: repo.owner.avatar_url,
+        assets,
+        pushed_at: repo.pushed_at,
+      };
+    })
   );
 
-  useCacheStore.getState().setReleaseCache(repoKey, assets);
-  return assets;
+  return resultsWithAssets.sort((a, b) => b.stargazers_count - a.stargazers_count);
 };
 
 export const useSearchStore = create<SearchState>((set, get) => ({
   results: [],
   isLoading: false,
+  isLoadingMore: false,
   error: null,
   hasSearched: false,
   currentPlatform: 'windows' as Platform,
-  search: async (query, category, platform) => {
-    if (!query.trim()) return;
+  currentSort: 'stars' as SortOption,
+  totalAvailable: 0,
+  currentPage: 0,
+  lastSearchParams: null,
+  search: async (query, category, platform, sort) => {
+    set({ isLoading: true, error: null, currentPlatform: platform, currentSort: sort, results: [], currentPage: 0 });
 
-    set({ isLoading: true, error: null, currentPlatform: platform });
-
-    const cacheKey = `${query}:${category}:${platform}`;
-    const cached = useCacheStore.getState().getSearchCache(cacheKey);
-
-    if (cached) {
-      set({ results: cached.data as AppResult[], hasSearched: true, isLoading: false });
-    }
+    const searchQuery = buildSearchQuery(query, category);
+    const sortParam = sort === 'updated' ? 'updated' : 'stars';
 
     try {
-      const topicQuery = buildTopicQuery(category);
-      const searchQuery = topicQuery
-        ? `${query}+${topicQuery}`
-        : query;
+      const url = `${GITHUB_API}/search/repositories?q=${encodeURIComponent(searchQuery)}&sort=${sortParam}&order=desc&per_page=${PAGE_SIZE}&page=1`;
 
-      const url = `${GITHUB_API}/search/repositories?q=${searchQuery}&sort=stars&order=desc&per_page=30`;
+      const response = await fetch(url, { headers: buildHeaders() });
+      parseRateLimit(response);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'GitHub API request failed');
+      }
+
+      const data = await response.json();
+      const repos = data.items || [];
+      const total = Math.min(data.total_count || 0, 1000);
+
+      const combined = await processRepos(repos, platform);
+
+      set({
+        results: combined,
+        totalAvailable: total,
+        currentPage: 1,
+        hasSearched: true,
+        isLoading: false,
+        error: null,
+        lastSearchParams: { query, category, platform, sort },
+      });
+    } catch (err: any) {
+      console.error('Search error:', err);
+      set({ error: err.message || 'Search failed', isLoading: false });
+    }
+  },
+  loadMore: async () => {
+    const state = get();
+    if (!state.lastSearchParams || state.isLoadingMore) return;
+
+    const nextPage = state.currentPage + 1;
+    const maxPages = Math.ceil(Math.min(1000, state.totalAvailable) / PAGE_SIZE);
+    if (nextPage > maxPages) return;
+
+    set({ isLoadingMore: true });
+
+    const { query, category, platform, sort } = state.lastSearchParams;
+    const searchQuery = buildSearchQuery(query, category);
+    const sortParam = sort === 'updated' ? 'updated' : 'stars';
+
+    try {
+      const url = `${GITHUB_API}/search/repositories?q=${encodeURIComponent(searchQuery)}&sort=${sortParam}&order=desc&per_page=${PAGE_SIZE}&page=${nextPage}`;
 
       const response = await fetch(url, { headers: buildHeaders() });
       parseRateLimit(response);
@@ -110,36 +229,24 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       const data = await response.json();
       const repos = data.items || [];
 
-      const resultsWithAssets = await Promise.all(
-        repos.map(async (repo: any) => {
-          const assets = await fetchLatestRelease(repo.owner.login, repo.name, platform);
-          return {
-            id: repo.id,
-            full_name: repo.full_name,
-            description: repo.description,
-            html_url: repo.html_url,
-            stargazers_count: repo.stargazers_count,
-            language: repo.language,
-            topics: repo.topics || [],
-            avatar_url: repo.owner.avatar_url,
-            assets,
-          };
-        })
-      );
+      const newResults = await processRepos(repos, platform);
 
-      const filtered = resultsWithAssets.filter((r: AppResult) => r.assets.length > 0);
-
-      useCacheStore.getState().setSearchCache(cacheKey, filtered);
-      set({ results: filtered, hasSearched: true, isLoading: false, error: null });
+      set({
+        results: [...state.results, ...newResults],
+        currentPage: nextPage,
+        isLoadingMore: false,
+        error: null,
+      });
     } catch (err: any) {
-      set({ error: err.message || 'Search failed', isLoading: false });
+      set({ error: err.message || 'Failed to load more', isLoadingMore: false });
     }
   },
   refresh: async () => {
     useCacheStore.getState().clearCache();
     const state = get();
-    if (state.results.length > 0) {
-      await state.search('', 'all', 'windows');
+    if (state.lastSearchParams) {
+      const { query, category, platform, sort } = state.lastSearchParams;
+      await state.search(query, category, platform, sort);
     }
   },
 }));

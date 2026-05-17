@@ -1,20 +1,46 @@
-import { useEffect } from 'react';
-import { useSearchStore } from '../hooks/useSearch';
+import { useEffect, useRef, useCallback } from 'react';
+import { useSearchStore, type SortOption } from '../hooks/useSearch';
 import { initAuth } from '../store/auth';
+import { type Platform } from '../lib/platforms';
 import SearchBar from '../components/SearchBar';
 import AppCard from '../components/AppCard';
 import AuthButton from '../components/AuthButton';
 
 export default function Landing() {
-  const { results, isLoading, error, hasSearched, search } = useSearchStore();
+  const { results, isLoading, isLoadingMore, error, hasSearched, totalAvailable, search, loadMore } = useSearchStore();
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     initAuth();
   }, []);
 
-  const handleSearch = (query: string, category: string, platform: string) => {
-    search(query, category, platform as any);
+  const handleSearch = (query: string, category: string, platform: Platform, sort: SortOption) => {
+    search(query, category, platform, sort);
   };
+
+  const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
+    const [entry] = entries;
+    if (entry.isIntersecting && !isLoadingMore && results.length > 0) {
+      const state = useSearchStore.getState();
+      const maxPages = Math.ceil(Math.min(1000, state.totalAvailable) / 50);
+      if (state.currentPage < maxPages) {
+        loadMore();
+      }
+    }
+  }, [isLoadingMore, results.length, loadMore]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasSearched) return;
+
+    const observer = new IntersectionObserver(handleObserver, { rootMargin: '400px' });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasSearched, handleObserver]);
+
+  const loadedCount = results.length;
+  const maxPages = Math.ceil(Math.min(1000, totalAvailable) / 50);
+  const hasMore = totalAvailable > loadedCount && useSearchStore.getState().currentPage < maxPages;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -79,11 +105,28 @@ export default function Landing() {
           ) : results.length > 0 ? (
             <div className="space-y-4">
               <p className="text-sm text-gitstore-muted">
-                Found {results.length} app{results.length !== 1 ? 's' : ''}
+                Showing {loadedCount} of {totalAvailable.toLocaleString()} apps
               </p>
               {results.map(app => (
                 <AppCard key={app.id} app={app} />
               ))}
+              <div ref={sentinelRef} className="flex justify-center py-8">
+                {isLoadingMore ? (
+                  <div className="flex items-center gap-3 text-gitstore-muted">
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Loading 50 more...
+                  </div>
+                ) : hasMore ? (
+                  <button onClick={loadMore} className="btn-secondary px-8">
+                    Load 50 more
+                  </button>
+                ) : (
+                  <p className="text-sm text-gitstore-muted">No more results</p>
+                )}
+              </div>
             </div>
           ) : (
             <div className="text-center py-12">
