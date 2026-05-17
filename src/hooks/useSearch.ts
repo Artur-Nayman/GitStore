@@ -35,8 +35,8 @@ interface SearchState {
   currentSort: SortOption;
   totalAvailable: number;
   currentPage: number;
-  lastSearchParams: { query: string; category: string; platform: Platform; sort: SortOption } | null;
-  search: (query: string, category: string, platform: Platform, sort: SortOption) => Promise<void>;
+  lastSearchParams: { query: string; category: string; platform: Platform; sort: SortOption; hasReleases: boolean } | null;
+  search: (query: string, category: string, platform: Platform, sort: SortOption, hasReleases: boolean) => Promise<void>;
   loadMore: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -62,7 +62,7 @@ const parseRateLimit = (response: Response) => {
 };
 
 const fetchLatestRelease = async (owner: string, repo: string, platform: Platform): Promise<ReleaseAsset[]> => {
-  const repoKey = `${owner}/${repo}`;
+  const repoKey = `${owner}/${repo}:${platform}`;
   const cached = useCacheStore.getState().getReleaseCache(repoKey);
   if (cached) return cached.data as ReleaseAsset[];
 
@@ -87,11 +87,27 @@ const fetchLatestRelease = async (owner: string, repo: string, platform: Platfor
   }
 };
 
-const buildSearchQuery = (keyword: string, category: string): string => {
+const buildSearchQuery = (keyword: string, category: string, platform: Platform, hasReleases: boolean): string => {
   const parts: string[] = [];
 
   if (keyword.trim()) {
     parts.push(keyword.trim());
+  }
+
+  const platformKeywords: Record<Platform, string[]> = {
+    windows: ['windows', 'win32', 'win64'],
+    linux: ['linux', 'ubuntu', 'debian', 'fedora'],
+    android: ['android', 'apk', 'mobile app'],
+  };
+
+  const platKw = platformKeywords[platform];
+  if (platKw.length > 0) {
+    const platQuery = platKw.map(k => `"${k}"`).join(' OR ');
+    if (parts.length > 0) {
+      parts.push(platQuery);
+    } else {
+      parts.push(`stars:>0 ${platQuery}`);
+    }
   }
 
   const categoryKeywords: Record<string, string[]> = {
@@ -116,12 +132,15 @@ const buildSearchQuery = (keyword: string, category: string): string => {
     const keywords = categoryKeywords[category] || [];
     if (keywords.length > 0) {
       const kwQuery = keywords.map(k => `"${k}"`).join(' OR ');
-      if (parts.length > 0) {
-        parts.push(kwQuery);
-      } else {
-        parts.push(`stars:>0 ${kwQuery}`);
-      }
+      parts.push(kwQuery);
     }
+  }
+
+  if (hasReleases) {
+    if (parts.length === 0) {
+      return 'stars:>0 has:releases';
+    }
+    parts.push('has:releases');
   }
 
   if (parts.length === 0) {
@@ -164,10 +183,10 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   totalAvailable: 0,
   currentPage: 0,
   lastSearchParams: null,
-  search: async (query, category, platform, sort) => {
+  search: async (query, category, platform, sort, hasReleases) => {
     set({ isLoading: true, error: null, currentPlatform: platform, currentSort: sort, results: [], currentPage: 0 });
 
-    const searchQuery = buildSearchQuery(query, category);
+    const searchQuery = buildSearchQuery(query, category, platform, hasReleases);
     const sortParam = sort === 'updated' ? 'updated' : 'stars';
 
     try {
@@ -185,7 +204,11 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       const repos = data.items || [];
       const total = Math.min(data.total_count || 0, 1000);
 
-      const combined = await processRepos(repos, platform);
+      let combined = await processRepos(repos, platform);
+
+      if (hasReleases) {
+        combined = combined.filter(r => r.assets.length > 0);
+      }
 
       set({
         results: combined,
@@ -194,7 +217,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
         hasSearched: true,
         isLoading: false,
         error: null,
-        lastSearchParams: { query, category, platform, sort },
+        lastSearchParams: { query, category, platform, sort, hasReleases },
       });
     } catch (err: any) {
       console.error('Search error:', err);
@@ -211,8 +234,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
     set({ isLoadingMore: true });
 
-    const { query, category, platform, sort } = state.lastSearchParams;
-    const searchQuery = buildSearchQuery(query, category);
+    const { query, category, platform, sort, hasReleases } = state.lastSearchParams;
+    const searchQuery = buildSearchQuery(query, category, platform, hasReleases);
     const sortParam = sort === 'updated' ? 'updated' : 'stars';
 
     try {
@@ -229,7 +252,11 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       const data = await response.json();
       const repos = data.items || [];
 
-      const newResults = await processRepos(repos, platform);
+      let newResults = await processRepos(repos, platform);
+
+      if (hasReleases) {
+        newResults = newResults.filter(r => r.assets.length > 0);
+      }
 
       set({
         results: [...state.results, ...newResults],
@@ -245,8 +272,8 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     useCacheStore.getState().clearCache();
     const state = get();
     if (state.lastSearchParams) {
-      const { query, category, platform, sort } = state.lastSearchParams;
-      await state.search(query, category, platform, sort);
+      const { query, category, platform, sort, hasReleases } = state.lastSearchParams;
+      await state.search(query, category, platform, sort, hasReleases);
     }
   },
 }));

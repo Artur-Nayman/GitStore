@@ -14,8 +14,8 @@ export default function Landing() {
     initAuth();
   }, []);
 
-  const handleSearch = (query: string, category: string, platform: Platform, sort: SortOption) => {
-    search(query, category, platform, sort);
+  const handleSearch = (query: string, category: string, platform: Platform, sort: SortOption, hasReleases: boolean) => {
+    search(query, category, platform, sort, hasReleases);
   };
 
   const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {

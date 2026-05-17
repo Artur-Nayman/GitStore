@@ -4,7 +4,7 @@ import { detectPlatform, platformLabels, type Platform } from '../lib/platforms'
 import { categories } from '../lib/categories';
 
 interface SearchBarProps {
-  onSearch: (query: string, category: string, platform: Platform, sort: SortOption) => void;
+  onSearch: (query: string, category: string, platform: Platform, sort: SortOption, hasReleases: boolean) => void;
 }
 
 const sortOptions: { value: SortOption; label: string }[] = [
@@ -18,10 +18,11 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
   const [category, setCategory] = useState('all');
   const [platform, setPlatform] = useState<Platform>(detectPlatform());
   const [sort, setSort] = useState<SortOption>('stars');
+  const [hasReleases, setHasReleases] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSearch(query, category, platform, sort);
+    onSearch(query, category, platform, sort, hasReleases);
   };
 
   return (
@@ -95,6 +96,19 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="hasReleases"
+          checked={hasReleases}
+          onChange={(e) => setHasReleases(e.target.checked)}
+          className="w-4 h-4 rounded border-gitstore-border bg-gitstore-surface text-gitstore-accent focus:ring-gitstore-accent"
+        />
+        <label htmlFor="hasReleases" className="text-sm text-gitstore-text cursor-pointer select-none">
+          Only show repos with downloadable releases
+        </label>
       </div>
     </form>
   );
