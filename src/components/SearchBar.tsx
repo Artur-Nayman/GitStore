@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchStore, type SortOption } from '../hooks/useSearch';
-import { detectPlatform, platformLabels, type Platform } from '../lib/platforms';
+import { platformLabels, type Platform } from '../lib/platforms';
 import { categories } from '../lib/categories';
 
 interface SearchBarProps {
@@ -16,7 +16,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
   const { isLoading } = useSearchStore();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
-  const [platform, setPlatform] = useState<Platform>(detectPlatform());
+  const [platform, setPlatform] = useState<Platform>('all');
   const [sort, setSort] = useState<SortOption>('stars');
   const [hasReleases, setHasReleases] = useState(false);
 

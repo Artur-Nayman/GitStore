@@ -95,13 +95,14 @@ const buildSearchQuery = (keyword: string, category: string, platform: Platform,
   }
 
   const platformKeywords: Record<Platform, string[]> = {
+    all: [],
     windows: ['windows', 'win32', 'win64'],
     linux: ['linux', 'ubuntu', 'debian', 'fedora'],
     android: ['android', 'apk', 'mobile app'],
   };
 
   const platKw = platformKeywords[platform];
-  if (platKw.length > 0) {
+  if (platKw && platKw.length > 0) {
     const platQuery = platKw.map(k => `"${k}"`).join(' OR ');
     if (parts.length > 0) {
       parts.push(platQuery);
@@ -178,7 +179,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   isLoadingMore: false,
   error: null,
   hasSearched: false,
-  currentPlatform: 'windows' as Platform,
+  currentPlatform: 'all' as Platform,
   currentSort: 'stars' as SortOption,
   totalAvailable: 0,
   currentPage: 0,

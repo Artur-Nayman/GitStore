@@ -1,12 +1,14 @@
-export type Platform = 'windows' | 'linux' | 'android';
+export type Platform = 'all' | 'windows' | 'linux' | 'android';
 
 export const platformExtensions: Record<Platform, string[]> = {
+  all: ['.exe', '.msi', '.deb', '.rpm', '.AppImage', '.apk'],
   windows: ['.exe', '.msi'],
   linux: ['.deb', '.rpm', '.AppImage'],
   android: ['.apk'],
 };
 
 export const platformLabels: Record<Platform, string> = {
+  all: 'All',
   windows: 'Windows',
   linux: 'Linux',
   android: 'Android',
