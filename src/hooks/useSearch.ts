@@ -62,7 +62,7 @@ const parseRateLimit = (response: Response) => {
   useAuthStore.getState().updateRateLimit(remaining, reset);
 };
 
-const fetchLatestRelease = async (owner: string, repo: string, platform: Platform): Promise<ReleaseAsset[]> => {
+export const fetchLatestRelease = async (owner: string, repo: string, platform: Platform): Promise<ReleaseAsset[]> => {
   const repoKey = `${owner}/${repo}:${platform}`;
   const cached = useCacheStore.getState().getReleaseCache(repoKey);
   if (cached) return cached.data as ReleaseAsset[];
