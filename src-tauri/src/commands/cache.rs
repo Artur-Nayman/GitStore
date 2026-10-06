@@ -1,5 +1,5 @@
-use tauri::State;
 use crate::db::DbPool;
+use tauri::State;
 
 #[tauri::command]
 pub fn get_cached_search(query: String, db: State<'_, DbPool>) -> Result<Option<String>, String> {
