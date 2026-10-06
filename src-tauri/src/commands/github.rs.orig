@@ -61,25 +61,12 @@ pub async fn search_repositories(
     let json: serde_json::Value = response.json().await.map_err(|e| e.to_string())?;
     let items = json["items"].as_array().ok_or("No items in response")?;
 
-    let mut fetch_futures = Vec::new();
-    for item in items {
-        let owner = item["owner"]["login"].as_str().unwrap_or("").to_string();
-        let repo = item["name"].as_str().unwrap_or("").to_string();
-        let platform = params.platform.clone();
-        let client_clone = client.clone();
-
-        let item_clone = item.clone();
-
-        fetch_futures.push(async move {
-            let assets = fetch_release_assets(&client_clone, &owner, &repo, &platform).await;
-            (item_clone, assets)
-        });
-    }
-
-    let fetch_results = futures::future::join_all(fetch_futures).await;
-
     let mut results = Vec::new();
-    for (item, assets) in fetch_results {
+    for item in items {
+        let owner = item["owner"]["login"].as_str().unwrap_or("");
+        let repo = item["name"].as_str().unwrap_or("");
+
+        let assets = fetch_release_assets(&client, owner, repo, &params.platform).await;
         if !assets.is_empty() {
             results.push(RepoResult {
                 id: item["id"].as_u64().unwrap_or(0),
