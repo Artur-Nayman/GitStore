@@ -20,12 +20,3 @@ pub fn cache_search_result(
     Ok(())
 }
 
-#[tauri::command]
-pub fn clear_cache(db: State<'_, DbPool>) -> Result<(), String> {
-    let pool = db.0.lock().map_err(|e| e.to_string())?;
-    pool.execute("DELETE FROM search_cache", [])
-        .map_err(|e| e.to_string())?;
-    pool.execute("DELETE FROM release_cache", [])
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
