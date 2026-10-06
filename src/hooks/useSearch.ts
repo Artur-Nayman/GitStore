@@ -152,23 +152,30 @@ const buildSearchQuery = (keyword: string, category: string, platform: Platform,
 };
 
 const processRepos = async (repos: any[], platform: Platform): Promise<AppResult[]> => {
-  const resultsWithAssets = await Promise.all(
-    repos.map(async (repo: any) => {
-      const assets = await fetchLatestRelease(repo.owner.login, repo.name, platform);
-      return {
-        id: repo.id,
-        full_name: repo.full_name,
-        description: repo.description,
-        html_url: repo.html_url,
-        stargazers_count: repo.stargazers_count,
-        language: repo.language,
-        topics: repo.topics || [],
-        avatar_url: repo.owner.avatar_url,
-        assets,
-        pushed_at: repo.pushed_at,
-      };
-    })
-  );
+  const resultsWithAssets: AppResult[] = [];
+  const CONCURRENCY_LIMIT = 5;
+
+  for (let i = 0; i < repos.length; i += CONCURRENCY_LIMIT) {
+    const chunk = repos.slice(i, i + CONCURRENCY_LIMIT);
+    const chunkResults = await Promise.all(
+      chunk.map(async (repo: any) => {
+        const assets = await fetchLatestRelease(repo.owner.login, repo.name, platform);
+        return {
+          id: repo.id,
+          full_name: repo.full_name,
+          description: repo.description,
+          html_url: repo.html_url,
+          stargazers_count: repo.stargazers_count,
+          language: repo.language,
+          topics: repo.topics || [],
+          avatar_url: repo.owner.avatar_url,
+          assets,
+          pushed_at: repo.pushed_at,
+        };
+      })
+    );
+    resultsWithAssets.push(...chunkResults);
+  }
 
   return resultsWithAssets.sort((a, b) => b.stargazers_count - a.stargazers_count);
 };
