@@ -4,9 +4,9 @@ import AuthButton from '../components/AuthButton';
 
 export default function Settings() {
   const { isAuthenticated, token } = useAuthStore();
-  const { searchCache, releaseCache, clearCache } = useCacheStore();
+  const { releaseCache, clearCache } = useCacheStore();
 
-  const cacheSize = Object.keys(searchCache).length + Object.keys(releaseCache).length;
+  const cacheSize = Object.keys(releaseCache).length;
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -49,7 +49,7 @@ export default function Settings() {
                 {cacheSize} entries cached
               </p>
               <p className="text-sm text-gitstore-muted mt-1">
-                Search: {Object.keys(searchCache).length} | Releases: {Object.keys(releaseCache).length}
+                Releases: {Object.keys(releaseCache).length}
               </p>
             </div>
             <button onClick={clearCache} className="btn-secondary">
