@@ -1,5 +1,5 @@
-use tauri::State;
 use crate::db::DbPool;
+use tauri::State;
 
 #[tauri::command]
 pub fn cache_search_result(

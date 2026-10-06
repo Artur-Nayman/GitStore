@@ -1,6 +1,6 @@
+use crate::db::DbPool;
 use serde::{Deserialize, Serialize};
 use tauri::State;
-use crate::db::DbPool;
 
 #[derive(Serialize, Deserialize)]
 pub struct SearchParams {
@@ -77,26 +77,22 @@ pub async fn search_repositories(
                 language: item["language"].as_str().map(|s| s.to_string()),
                 topics: item["topics"]
                     .as_array()
-                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
                     .unwrap_or_default(),
-                avatar_url: item["owner"]["avatar_url"].as_str().unwrap_or("").to_string(),
+                avatar_url: item["owner"]["avatar_url"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string(),
                 assets,
             });
         }
     }
 
     Ok(results)
-}
-
-#[tauri::command]
-pub async fn fetch_latest_release(
-    owner: String,
-    repo: String,
-    platform: String,
-) -> Result<Vec<RepoAsset>, String> {
-    let client = reqwest::Client::new();
-    let assets = fetch_release_assets(&client, &owner, &repo, &platform).await;
-    Ok(assets)
 }
 
 async fn fetch_release_assets(
@@ -138,10 +134,16 @@ async fn fetch_release_assets(
         .iter()
         .filter_map(|asset| {
             let name = asset["name"].as_str().unwrap_or("");
-            if extensions.iter().any(|ext| name.to_lowercase().ends_with(ext)) {
+            if extensions
+                .iter()
+                .any(|ext| name.to_lowercase().ends_with(ext))
+            {
                 Some(RepoAsset {
                     name: name.to_string(),
-                    url: asset["browser_download_url"].as_str().unwrap_or("").to_string(),
+                    url: asset["browser_download_url"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
                 })
             } else {
                 None
