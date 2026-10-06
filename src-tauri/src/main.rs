@@ -17,7 +17,6 @@ fn main() {
             commands::github::search_repositories,
             commands::cache::get_cached_search,
             commands::cache::cache_search_result,
-            commands::cache::clear_cache,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

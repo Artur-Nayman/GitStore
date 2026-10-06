@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { useAuthStore } from '../store/auth';
 import { useCacheStore } from '../store/cache';
 import { filterAssetsByPlatform, type Platform } from '../lib/platforms';
+import { categories } from '../lib/categories';
 
 export type SortOption = 'stars' | 'updated';
 
@@ -111,28 +112,11 @@ const buildSearchQuery = (keyword: string, category: string, platform: Platform,
     }
   }
 
-  const categoryKeywords: Record<string, string[]> = {
-    'dev-tools': ['developer tools', 'code editor', 'IDE', 'devtools'],
-    'media': ['media player', 'audio player', 'video player', 'music player', 'podcast'],
-    'communication': ['chat app', 'messaging', 'email client', 'voip', 'IRC client'],
-    'utilities': ['file manager', 'system utility', 'clipboard manager', 'app launcher'],
-    'games': ['game engine', 'game launcher', 'emulator', 'game client'],
-    'security': ['password manager', 'encryption tool', 'firewall', 'privacy tool'],
-    'networking': ['vpn client', 'proxy tool', 'web browser', 'DNS', 'torrent client'],
-    'productivity': ['note taking', 'task manager', 'calendar app', 'kanban board'],
-    'graphics': ['image editor', 'photo editor', 'drawing app', '3D modeling', 'CAD'],
-    'science': ['science tool', 'education app', 'math software', 'physics simulation'],
-    'finance': ['finance app', 'accounting software', 'budget tracker', 'crypto wallet'],
-    'ai-ml': ['machine learning', 'AI tool', 'chatbot', 'neural network', 'LLM'],
-    'cloud': ['cloud tool', 'docker tool', 'kubernetes', 'CI/CD', 'monitoring tool', 'backup tool'],
-    'terminal': ['terminal emulator', 'shell', 'command line', 'CLI tool', 'REPL'],
-    'data': ['database tool', 'data visualization', 'analytics tool', 'ETL'],
-  };
-
   if (category && category !== 'all') {
-    const keywords = categoryKeywords[category] || [];
+    const categoryData = categories.find(c => c.id === category);
+    const keywords = categoryData ? categoryData.topics : [];
     if (keywords.length > 0) {
-      const kwQuery = keywords.map(k => `"${k}"`).join(' OR ');
+      const kwQuery = keywords.map(k => `"${k.replace(/-/g, ' ')}"`).join(' OR ');
       parts.push(kwQuery);
     }
   }
@@ -152,23 +136,30 @@ const buildSearchQuery = (keyword: string, category: string, platform: Platform,
 };
 
 const processRepos = async (repos: any[], platform: Platform): Promise<AppResult[]> => {
-  const resultsWithAssets = await Promise.all(
-    repos.map(async (repo: any) => {
-      const assets = await fetchLatestRelease(repo.owner.login, repo.name, platform);
-      return {
-        id: repo.id,
-        full_name: repo.full_name,
-        description: repo.description,
-        html_url: repo.html_url,
-        stargazers_count: repo.stargazers_count,
-        language: repo.language,
-        topics: repo.topics || [],
-        avatar_url: repo.owner.avatar_url,
-        assets,
-        pushed_at: repo.pushed_at,
-      };
-    })
-  );
+  const resultsWithAssets: AppResult[] = [];
+  const CONCURRENCY_LIMIT = 5;
+
+  for (let i = 0; i < repos.length; i += CONCURRENCY_LIMIT) {
+    const chunk = repos.slice(i, i + CONCURRENCY_LIMIT);
+    const chunkResults = await Promise.all(
+      chunk.map(async (repo: any) => {
+        const assets = await fetchLatestRelease(repo.owner.login, repo.name, platform);
+        return {
+          id: repo.id,
+          full_name: repo.full_name,
+          description: repo.description,
+          html_url: repo.html_url,
+          stargazers_count: repo.stargazers_count,
+          language: repo.language,
+          topics: repo.topics || [],
+          avatar_url: repo.owner.avatar_url,
+          assets,
+          pushed_at: repo.pushed_at,
+        };
+      })
+    );
+    resultsWithAssets.push(...chunkResults);
+  }
 
   return resultsWithAssets.sort((a, b) => b.stargazers_count - a.stargazers_count);
 };
