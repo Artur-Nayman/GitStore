@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { useAuthStore } from '../store/auth';
 import { useCacheStore } from '../store/cache';
 import { filterAssetsByPlatform, type Platform } from '../lib/platforms';
+import { categories } from '../lib/categories';
 
 export type SortOption = 'stars' | 'updated';
 
@@ -111,28 +112,11 @@ const buildSearchQuery = (keyword: string, category: string, platform: Platform,
     }
   }
 
-  const categoryKeywords: Record<string, string[]> = {
-    'dev-tools': ['developer tools', 'code editor', 'IDE', 'devtools'],
-    'media': ['media player', 'audio player', 'video player', 'music player', 'podcast'],
-    'communication': ['chat app', 'messaging', 'email client', 'voip', 'IRC client'],
-    'utilities': ['file manager', 'system utility', 'clipboard manager', 'app launcher'],
-    'games': ['game engine', 'game launcher', 'emulator', 'game client'],
-    'security': ['password manager', 'encryption tool', 'firewall', 'privacy tool'],
-    'networking': ['vpn client', 'proxy tool', 'web browser', 'DNS', 'torrent client'],
-    'productivity': ['note taking', 'task manager', 'calendar app', 'kanban board'],
-    'graphics': ['image editor', 'photo editor', 'drawing app', '3D modeling', 'CAD'],
-    'science': ['science tool', 'education app', 'math software', 'physics simulation'],
-    'finance': ['finance app', 'accounting software', 'budget tracker', 'crypto wallet'],
-    'ai-ml': ['machine learning', 'AI tool', 'chatbot', 'neural network', 'LLM'],
-    'cloud': ['cloud tool', 'docker tool', 'kubernetes', 'CI/CD', 'monitoring tool', 'backup tool'],
-    'terminal': ['terminal emulator', 'shell', 'command line', 'CLI tool', 'REPL'],
-    'data': ['database tool', 'data visualization', 'analytics tool', 'ETL'],
-  };
-
   if (category && category !== 'all') {
-    const keywords = categoryKeywords[category] || [];
+    const categoryData = categories.find(c => c.id === category);
+    const keywords = categoryData ? categoryData.topics : [];
     if (keywords.length > 0) {
-      const kwQuery = keywords.map(k => `"${k}"`).join(' OR ');
+      const kwQuery = keywords.map(k => `"${k.replace(/-/g, ' ')}"`).join(' OR ');
       parts.push(kwQuery);
     }
   }
