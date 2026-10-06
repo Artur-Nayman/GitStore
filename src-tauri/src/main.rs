@@ -14,8 +14,6 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::github::search_repositories,
-            commands::github::fetch_latest_release,
             commands::cache::cache_search_result,
         ])
         .run(tauri::generate_context!())
