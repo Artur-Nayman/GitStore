@@ -22,7 +22,7 @@ describe('useOAuth', () => {
   it('should validate token format starting with ghp_', async () => {
     const { result } = renderHook(() => useOAuth());
 
-    act(() => {
+    await act(async () => {
       result.current.setTokenInput('invalid_token');
     });
 
@@ -31,16 +31,16 @@ describe('useOAuth', () => {
     });
 
     expect(result.current.error).toBe('Token must start with "ghp_" or "github_pat_"');
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
   it('should handle successful token submission', async () => {
     const mockResponse = { ok: true };
-    vi.mocked(global.fetch).mockResolvedValueOnce(mockResponse as Response);
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(mockResponse as Response);
 
     const { result } = renderHook(() => useOAuth());
 
-    act(() => {
+    await act(async () => {
       result.current.setTokenInput('ghp_valid_token');
     });
 
@@ -48,7 +48,7 @@ describe('useOAuth', () => {
       await result.current.submitToken();
     });
 
-    expect(global.fetch).toHaveBeenCalledWith('https://api.github.com/user', {
+    expect(globalThis.fetch).toHaveBeenCalledWith('https://api.github.com/user', {
       headers: {
         'Authorization': 'Bearer ghp_valid_token',
         'Accept': 'application/vnd.github+json',
@@ -63,11 +63,11 @@ describe('useOAuth', () => {
 
   it('should handle API error (invalid token)', async () => {
     const mockResponse = { ok: false };
-    vi.mocked(global.fetch).mockResolvedValueOnce(mockResponse as Response);
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(mockResponse as Response);
 
     const { result } = renderHook(() => useOAuth());
 
-    act(() => {
+    await act(async () => {
       result.current.setTokenInput('ghp_invalid_token');
     });
 
@@ -80,11 +80,11 @@ describe('useOAuth', () => {
   });
 
   it('should handle network error (fetch failure)', async () => {
-    vi.mocked(global.fetch).mockRejectedValueOnce(new Error('Network error'));
+    vi.mocked(globalThis.fetch).mockRejectedValueOnce(new Error('Network error'));
 
     const { result } = renderHook(() => useOAuth());
 
-    act(() => {
+    await act(async () => {
       result.current.setTokenInput('ghp_token');
     });
 
@@ -96,13 +96,13 @@ describe('useOAuth', () => {
     expect(useAuthStore.getState().token).toBeNull();
   });
 
-  it('should clear token and errors on logout', () => {
+  it('should clear token and errors on logout', async () => {
     useAuthStore.setState({ isAuthenticated: true, token: 'some_token' });
     const { result } = renderHook(() => useOAuth());
 
-    act(() => {
+    await act(async () => {
       result.current.setTokenInput('input');
-      result.current.logout();
+      await result.current.logout();
     });
 
     expect(result.current.tokenInput).toBe('');

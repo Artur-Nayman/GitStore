@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub fn is_platform_asset(filename: &str, platform: &str) -> bool {
     let lower = filename.to_lowercase();
     match platform {
